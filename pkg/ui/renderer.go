@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"image"
 
 	"github.com/skip2/go-qrcode"
@@ -24,6 +25,9 @@ func NewRenderer(opts RendererOptions) *Renderer {
 func (r *Renderer) NumPages(state observer.ServiceState) int {
 	if state.Status == observer.StatusSetupRequired && state.Setup != nil {
 		return 3
+	}
+	if state.Status == observer.StatusTest {
+		return 2
 	}
 	return 1
 }
@@ -51,6 +55,13 @@ func (r *Renderer) Render(state observer.ServiceState, pageIndex int) image.Imag
 		}
 	case observer.StatusConfigured:
 		r.renderConfigured(img, state)
+	case observer.StatusTest:
+		page := pageIndex % 2
+		if page == 0 {
+			r.renderTestInfo(img, state)
+		} else {
+			r.renderTestPattern(img, state)
+		}
 	case observer.StatusError:
 		r.renderError(img, state)
 	default:
@@ -173,15 +184,26 @@ func (r *Renderer) renderSetupEndpoint(img *image.RGBA, info *observer.SetupInfo
 }
 
 func (r *Renderer) renderConfigured(img *image.RGBA, state observer.ServiceState) {
-	DrawInvertedHeader(img, "SECURITY HUB")
+	DrawInvertedHeader(img, "SecurityHUB")
 
-	DrawCenteredText(img, 32, "STATUS: ACTIVE", ColorWhite)
-	DrawCenteredText(img, 46, "Configured OK", ColorWhite)
-
-	for x := 4; x < 124; x++ {
-		img.Set(x, 56, ColorWhite)
+	ipText := "IP: Detecting..."
+	if state.Configured != nil && state.Configured.IPAddress != "" {
+		ipText = "IP: " + state.Configured.IPAddress
+	} else if state.Test != nil && state.Test.IPAddress != "" {
+		ipText = "IP: " + state.Test.IPAddress
 	}
-	DrawCenteredText(img, 62, "System Ready", ColorWhite)
+	DrawCenteredText(img, 30, ipText, ColorWhite)
+
+	devCount := int64(0)
+	if state.Configured != nil {
+		devCount = state.Configured.ConnectedDevices
+	}
+	devText := fmt.Sprintf("Devices: %d connected", devCount)
+	DrawCenteredText(img, 44, devText, ColorWhite)
+
+	for x := 10; x < 118; x += 4 {
+		img.Set(x, 58, ColorWhite)
+	}
 }
 
 func (r *Renderer) renderError(img *image.RGBA, state observer.ServiceState) {
@@ -199,4 +221,54 @@ func (r *Renderer) renderError(img *image.RGBA, state observer.ServiceState) {
 		}
 		DrawText(img, 2, startY+i*13, line, ColorWhite)
 	}
+}
+
+func (r *Renderer) renderTestInfo(img *image.RGBA, state observer.ServiceState) {
+	DrawInvertedHeader(img, "TEST MODE [1/2]")
+
+	DrawCenteredText(img, 26, "SecurityHUB", ColorWhite)
+
+	busInfo := "SH1106 OLED 128x64"
+	if state.Test != nil && state.Test.DeviceBus != "" {
+		busInfo = state.Test.DeviceBus
+		if state.Test.DeviceAddr != "" {
+			busInfo += " @" + state.Test.DeviceAddr
+		}
+	}
+	DrawCenteredText(img, 38, busInfo, ColorWhite)
+
+	ipInfo := "Status: OK"
+	if state.Test != nil && state.Test.IPAddress != "" {
+		ipInfo = "IP: " + state.Test.IPAddress
+	} else if state.Test != nil && state.Test.Message != "" {
+		ipInfo = state.Test.Message
+	}
+	DrawCenteredText(img, 50, ipInfo, ColorWhite)
+
+	for x := 4; x < 124; x += 3 {
+		img.Set(x, 62, ColorWhite)
+	}
+}
+
+func (r *Renderer) renderTestPattern(img *image.RGBA, state observer.ServiceState) {
+	DrawInvertedHeader(img, "PATTERN [2/2]")
+
+	// Full outer border
+	DrawBorder(img)
+
+	// Crosshair center lines
+	for x := 10; x < 118; x += 2 {
+		img.Set(x, 38, ColorWhite)
+	}
+	for y := 16; y < 60; y += 2 {
+		img.Set(64, y, ColorWhite)
+	}
+
+	// Corner test squares
+	fillRect(img, 2, 15, 8, 21, ColorWhite)
+	fillRect(img, 120, 15, 126, 21, ColorWhite)
+	fillRect(img, 2, 56, 8, 62, ColorWhite)
+	fillRect(img, 120, 56, 126, 62, ColorWhite)
+
+	DrawCenteredText(img, 34, "GRID OK", ColorWhite)
 }

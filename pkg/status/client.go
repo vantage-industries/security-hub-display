@@ -11,15 +11,21 @@ import (
 )
 
 type Response struct {
-	SetupRequired bool `json:"setup_required"`
+	SetupRequired    bool   `json:"setup_required"`
+	ConnectedDevices int64  `json:"connected_devices,omitempty"`
+	IPAddress        string `json:"ip_address,omitempty"`
+	TurnOn           *bool  `json:"turn_on,omitempty"`
 }
 
 type Result struct {
-	Available     bool
-	SetupRequired bool
-	StatusCode    int
-	Error         error
-	CheckedAt     time.Time
+	Available        bool
+	SetupRequired    bool
+	ConnectedDevices int64
+	IPAddress        string
+	TurnOn           bool
+	StatusCode       int
+	Error            error
+	CheckedAt        time.Time
 }
 
 type Client struct {
@@ -107,10 +113,18 @@ func (c *Client) checkURL(ctx context.Context, targetURL string) Result {
 		}
 	}
 
+	turnOn := true
+	if parsed.TurnOn != nil {
+		turnOn = *parsed.TurnOn
+	}
+
 	return Result{
-		Available:     true,
-		SetupRequired: parsed.SetupRequired,
-		StatusCode:    resp.StatusCode,
-		CheckedAt:     now,
+		Available:        true,
+		SetupRequired:    parsed.SetupRequired,
+		ConnectedDevices: parsed.ConnectedDevices,
+		IPAddress:        parsed.IPAddress,
+		TurnOn:           turnOn,
+		StatusCode:       resp.StatusCode,
+		CheckedAt:        now,
 	}
 }
