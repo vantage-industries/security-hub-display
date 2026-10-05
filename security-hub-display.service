@@ -1,0 +1,29 @@
+[Unit]
+Description=SecurityHub OLED Display Observer (MOD-08867)
+Documentation=https://github.com/security-hub/security-hub-display
+After=network.target security-hub-api.service
+Wants=security-hub-api.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/security-hub-display
+ExecStart=/opt/security-hub-display/security-hub-display \
+    --unit=security-hub-api \
+    --mode=i2c \
+    --i2c-bus=/dev/i2c-1 \
+    --i2c-addr=0x3C \
+    --col-offset=2 \
+    --carousel=5
+
+Restart=always
+RestartSec=5s
+
+CapabilityBoundingSet=CAP_SYS_RAWIO
+AmbientCapabilities=CAP_SYS_RAWIO
+ProtectSystem=full
+ProtectHome=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
